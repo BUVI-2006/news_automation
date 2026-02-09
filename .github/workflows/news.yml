@@ -1,0 +1,31 @@
+name: Automated News Ingestion
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # runs every 15 minutes
+  workflow_dispatch:        # manual trigger button
+
+jobs:
+  run-news-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run news ingestion job
+        env:
+          MARKET_API_KEY: ${{ secrets.MARKET_API_KEY }}
+          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
+        run: |
+          python news_job.py
