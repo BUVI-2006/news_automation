@@ -2,7 +2,7 @@ name: Automated News Ingestion
 
 on:
   schedule:
-    - cron: "*/30 4 * * *"   # starts at 10:00 AM IST , run for 15 mins and stops 
+    - cron: '30 4 * * *'   # starts at 10:00 AM IST , run for 15 mins and stops 
   workflow_dispatch:        # manual trigger button
 
 jobs:
