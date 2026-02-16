@@ -16,20 +16,24 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 import uvicorn
 import pickle 
+from huggingface_hub import InferenceClient
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 
 
 
+load_dotenv()
+
 
 app=FastAPI()
 
-firebase_key=os.environ.get('FIREBASE_KEY')
-firebase_admin.initialize_app(firebase_key)
+cred=credentials.Certificate('serviceaccountkey.json')
+firebase_admin.initialize_app(cred)
 
+HF_TOKEN=os.environ.get('HF_TOKEN')
 
    
-
+client=InferenceClient(token=HF_TOKEN)
 
 
 
@@ -111,66 +115,6 @@ def stress_threshold(stress_value):
 
    return stress_score
 
-      
-
-class PredictRequest(BaseModel):
-   stock:str
-
-
-
-# Just import the time series model and evaluate prediction under this ....
-@app.post("/predict")      # from post , only stock is given ==> 
-def forecast_series(data:PredictRequest):
-   data=data.model_dump()
-   stock=data['stock']
-
-   db=firestore.client()
-
-   merge_data=data_computer(stock=stock,db=db)
-
-   with open(f'{stock}_corporation/liquidity_model.pkl','rb') as liquidity:
-      liquidity_model=pickle.load(liquidity)
-
-   with open(f'{stock}_corporation/stress_model.pkl','rb') as stress:
-      stress_model=pickle.load(stress)
-    
-   with open(f'{stock}_corporation/stress_model.pkl','rb') as drawdown:
-      drawdown_model=pickle.load(drawdown)
-
-    
-   liquidity_forecast=liquidity_model.forecast(steps=len(merge_data),exog=merge_data[['Trend_lag1', 'Volume_spike_lag1', 'Gap_lag1','Sentiment_lag1', 'days_since_news_lag1']])
-   stress_forecast=stress_model.forecast(steps=len(merge_data),exog=merge_data[['Volume_spike_lag1', 'Gap_lag1','Sentiment_lag1','Drawdown_lag1','Stress_lag1']])
-   drawdown_forecast=drawdown_model.forecats(steps=len(merge_data),exog=merge_data[['Trend_lag1','Volume_spike_lag1', 'Gap_lag1','Sentiment_lag1', 'days_since_news_lag1','Drawdown_lag1']])
-
-   x_values=merge_data['Date']
-
-   liquidity_score=liquidity_threshold(liquidity_forecast.tolist()[-1])
-   drawdown_score=drawdown_threshold(drawdown_forecast.tolist()[-1])
-   stress_score=stress_threshold(stress_forecast.tolist()[-1])
-
-   # According to bank rule for risk calcualtion in BASEL III
-
-   risk_score=(liquidity_score * 0.40 + 
-                  stress_score * 0.35 + 
-                  drawdown_score * 0.25)
-
-
-   return {
-      "liquidity":{
-         "x":x_values,
-         "y": liquidity_forecast.tolist()
-      },
-      "stress":{
-         "x":x_values,
-         "y":stress_forecast.tolist()
-      },
-      "drawdown":{
-         "x":x_values,
-         "y":drawdown_forecast.tolist()
-      } ,
-      "risk_score":risk_score
-      
-      }
 
 
 
@@ -268,7 +212,7 @@ def data_computer(stock,db):
 # ===================calculating the lags==========================
     merge_data=merge_data.drop(columns=[c for c in merge_data.columns if c.endswith('_lag1')])
 
-    cols=['Trend','Volume_spike','Gap','Sentiment','days_since_news','Drawdown']
+    cols=['Trend','Volume_spike','Gap','Sentiment','days_since_news','Drawdown','Stress']
 
 
     for col in cols: 
@@ -277,6 +221,90 @@ def data_computer(stock,db):
     merge_data=merge_data.dropna()
 
     return merge_data
+
+      
+
+class PredictRequest(BaseModel):
+   stock:str
+
+
+
+# Just import the time series model and evaluate prediction under this ....
+@app.post("/predict")      # from post , only stock is given ==> 
+def forecast_series(data:PredictRequest):
+   data=data.model_dump()
+   stock=data['stock']
+
+   db=firestore.client()
+
+   merge_data=data_computer(stock=stock,db=db)
+
+   with open(f'{stock}_corporation/liquidity_model.pkl','rb') as liquidity:
+      liquidity_model=pickle.load(liquidity)
+
+   with open(f'{stock}_corporation/stress_model.pkl','rb') as stress:
+      stress_model=pickle.load(stress)
+    
+   with open(f'{stock}_corporation/drawdown_model.pkl','rb') as drawdown:
+      drawdown_model=pickle.load(drawdown)
+
+    
+   liquidity_forecast=liquidity_model.forecast(steps=len(merge_data),exog=merge_data[['Trend_lag1', 'Volume_spike_lag1', 'Gap_lag1','Sentiment_lag1', 'days_since_news_lag1']])
+   stress_forecast=stress_model.forecast(steps=len(merge_data),exog=merge_data[['Volume_spike_lag1', 'Gap_lag1','Sentiment_lag1','Drawdown_lag1','Stress_lag1']])
+   drawdown_forecast=drawdown_model.forecast(steps=len(merge_data),exog=merge_data[['Trend_lag1','Volume_spike_lag1', 'Gap_lag1','Sentiment_lag1', 'days_since_news_lag1','Drawdown_lag1']])
+
+   x_values=merge_data['Date']
+
+   liquidity_score=liquidity_threshold(liquidity_forecast.tolist()[-1])
+   drawdown_score=drawdown_threshold(drawdown_forecast.tolist()[-1])
+   stress_score=stress_threshold(stress_forecast.tolist()[-1])
+
+   # According to bank rule for risk calcualtion in BASEL III
+
+   risk_score=(liquidity_score * 0.40 + 
+                  stress_score * 0.35 + 
+                  drawdown_score * 0.25)
+   
+   messages=[
+       {"role": "system", "content": "You are a helpful AI assistant."},
+       {"role": "user", "content": "Can you provide ways to eat combinations of bananas and dragonfruits?"},
+       {"role": "assistant", "content": "Sure! Here are some ways to eat bananas and dragonfruits together: 1. Banana and dragonfruit smoothie: Blend bananas and dragonfruits together with some milk and honey. 2. Banana and dragonfruit salad: Mix sliced bananas and dragonfruits together with some lemon juice and honey."},
+       {"role": "user", "content": "What about solving an 2x + 3 = 7 equation?"},
+   ]
+
+   response=client.chat_completion(
+       model="meta-llama/Llama-3.2-3B-Instruct",
+       messages=messages,
+       max_tokens=500,
+       temperature=0.0
+   )
+   
+   
+   
+
+
+   return {
+      "liquidity":{
+         "x":x_values,
+         "y": liquidity_forecast.tolist()
+      },
+      "stress":{
+         "x":x_values,
+         "y":stress_forecast.tolist()
+      },
+      "drawdown":{
+         "x":x_values,
+         "y":drawdown_forecast.tolist()
+      } ,
+      "risk_score":risk_score,
+
+      "LLM_response":response.choices[0].message.content
+      
+      }
+
+
+
+
 
 
 
