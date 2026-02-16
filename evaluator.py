@@ -255,9 +255,13 @@ def forecast_series(data:PredictRequest):
 
    x_values=merge_data['Date']
 
-   liquidity_score=liquidity_threshold(liquidity_forecast.tolist()[-1])
-   drawdown_score=drawdown_threshold(drawdown_forecast.tolist()[-1])
-   stress_score=stress_threshold(stress_forecast.tolist()[-1])
+   last_liq_score=liquidity_forecast.tolist()[-1]
+   last_draw_score=drawdown_forecast.tolist()[-1]
+   last_stress_score=stress_forecast.tolist()[-1]
+
+   liquidity_score=liquidity_threshold(last_liq_score)
+   drawdown_score=drawdown_threshold(last_draw_score)
+   stress_score=stress_threshold(last_stress_score)
 
    # According to bank rule for risk calcualtion in BASEL III
 
@@ -265,12 +269,47 @@ def forecast_series(data:PredictRequest):
                   stress_score * 0.35 + 
                   drawdown_score * 0.25)
    
-   messages=[
-       {"role": "system", "content": "You are a helpful AI assistant."},
-       {"role": "user", "content": "Can you provide ways to eat combinations of bananas and dragonfruits?"},
-       {"role": "assistant", "content": "Sure! Here are some ways to eat bananas and dragonfruits together: 1. Banana and dragonfruit smoothie: Blend bananas and dragonfruits together with some milk and honey. 2. Banana and dragonfruit salad: Mix sliced bananas and dragonfruits together with some lemon juice and honey."},
-       {"role": "user", "content": "What about solving an 2x + 3 = 7 equation?"},
+   formatted_drawdown = f"{last_draw_score:.1%}"  # Results in %
+   formatted_stress = f"{last_stress_score:.1%}"
+   
+   messages = [
+    {
+        "role": "system", 
+        "content": """You are a Senior Bank Risk & Compliance Officer. 
+        Your task is to analyze portfolio metrics against Basel III and internal liquidity standards.
+        
+        CRITICAL INSTRUCTIONS:
+        - Return the analysis in a clean, structured format.
+        - Use specific financial terminology (e.g., LCR, NSFR, Value-at-Risk).
+        - If any score is critical, prefix the analysis with '!!! CRITICAL ALERT !!!'.
+        - Ensure the output is concise enough for a dashboard widget."""
+    },
+    {
+        "role": "user", 
+        "content": f"""
+        Analyze these live portfolio metrics:
+        - Liquidity Ratio: {last_liq_score} (Internal Benchmark: >1.0)
+        - Max Drawdown: {formatted_drawdown}% (Limit: 15%)
+        - Stress Test Score: {formatted_stress} (Threshold: 70)
+        - Combined Risk Score: {risk_score}
+
+        Output your response exactly in this structure:
+        ### 1. Executive Summary
+        [One sentence on overall health]
+
+        ### 2. Metric Breakdown
+        - **Liquidity:** [Analysis]
+        - **Drawdown:** [Analysis]
+        - **Stress:** [Analysis]
+
+        ### 3. Compliance & Action
+        - **Status:** [Compliant/Non-Compliant]
+        - **Priority:** [Low/Medium/High/Critical]
+        - **Immediate Action:** [Step 1, Step 2]
+        """
+    }
    ]
+
 
    response=client.chat_completion(
        model="meta-llama/Llama-3.2-3B-Instruct",
