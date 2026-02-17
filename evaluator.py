@@ -4,8 +4,6 @@ import yfinance as yf
 import os 
 import nltk 
 from datetime import datetime ,timedelta
-from nltk.sentiment import SentimentIntensityAnalyzer
-from nltk.tokenize import sent_tokenize
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.lex_rank import LexRankSummarizer
@@ -41,6 +39,12 @@ HF_TOKEN=os.environ.get('HF_TOKEN')
 
    
 client=InferenceClient(token=HF_TOKEN)
+
+nltk.download('vader_lexicon', quiet=True)
+nltk.download('punkt', quiet=True)
+nltk.download('stopwords', quiet=True)
+
+from nltk.sentiment import SentimentIntensityAnalyzer
 
 
 
