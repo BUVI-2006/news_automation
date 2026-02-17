@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 import uvicorn
 import pickle 
+import json
 from huggingface_hub import InferenceClient
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
