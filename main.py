@@ -55,6 +55,7 @@ def news_store(db):
         try:
             response = requests.get(url, params=params)
             data = response.json()
+            print(f"\n{ticker} API Response:", json.dumps(data, indent=2))
 
             
             if 'feed' not in data:
@@ -69,7 +70,7 @@ def news_store(db):
 
                 clean_data = {
                     "title": article['title'],
-                    "summary": article.get("summary", ""),
+                    "description": article.get("summary", ""),
                     "published_date": dt.isoformat().replace("+00:00", "Z"),
                     "url": article.get("url", ""),
                     "sentiment_score": article.get("overall_sentiment_score")
