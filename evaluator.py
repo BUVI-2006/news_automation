@@ -117,6 +117,9 @@ def stress_threshold(stress_value):
 
 
 
+import yfinance as yf 
+import pandas as pd 
+
 
 def data_computer(stock,db):
 
@@ -133,7 +136,7 @@ def data_computer(stock,db):
 
     for doc in docs :
         data=doc.to_dict()
-        t=datetime.fromisoformat(data['publish_date'].replace("Z","+00:00")).date()
+        t = pd.to_datetime(data['publish_date'], format='ISO8601').date()
 
     
         if max_date is None or t>max_date:
@@ -196,7 +199,7 @@ def data_computer(stock,db):
 # ======================merging the final data for prediction=================================
 
     df['Date']=pd.to_datetime(df['Date'],utc=True).dt.date
-    sentiment_data['Date']=pd.to_datetime(sentiment_data['Date'],utc=True).dt.date
+    sentiment_data['Date']=pd.to_datetime(sentiment_data['Date'],format='ISO8601',utc=True).dt.date
     merge_data=df.merge(sentiment_data[['Date','Sentiment']],on='Date',how='left')
     merge_data['last_news_date']=merge_data['Date'].where(merge_data['Sentiment'].notna())
     merge_data['last_news_date']=merge_data['last_news_date'].ffill()
@@ -221,7 +224,6 @@ def data_computer(stock,db):
     merge_data=merge_data.dropna()
 
     return merge_data
-
       
 
 class PredictRequest(BaseModel):
