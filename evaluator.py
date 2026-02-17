@@ -117,15 +117,15 @@ def stress_threshold(stress_value):
 
 
 
-import yfinance as yf 
-import pandas as pd 
 
 
 def data_computer(stock,db):
+    """Final working code for RISK prediction"""
 
 #============================Stock evaluation based on dates ====================================
     articles_ref=db.collection('news').document(stock).collection("articles")
     docs=articles_ref.stream()
+
 
     min_date=None
     max_date=None
@@ -136,6 +136,11 @@ def data_computer(stock,db):
 
     for doc in docs :
         data=doc.to_dict()
+
+
+        if "publish_date" not in data:
+            continue 
+
         t = pd.to_datetime(data['publish_date'], format='ISO8601').date()
 
     
@@ -152,7 +157,10 @@ def data_computer(stock,db):
     start=min_date.strftime("%Y-%m-%d")
 
 
+
+
     df=yf.download(stock,start=start,end=end)
+
 
     df.columns=df.columns.droplevel(1)
 
@@ -179,13 +187,18 @@ def data_computer(stock,db):
 
     docs=articles_ref.stream()
 
+
     sid=SentimentIntensityAnalyzer()
 
     rows=[]
 
     for doc in docs :
+       
        doc=doc.to_dict()
-       print(doc['publish_date'])
+       
+       if "publish_date" not in doc:
+          continue
+
        text=doc['title']+'.'+doc['description']
        lexrank=lexrank_summary(text)
        sentiment=(0.0 if pd.isna(lexrank) or lexrank.strip()=="" else sid.polarity_scores(lexrank)['compound'])
@@ -194,6 +207,7 @@ def data_computer(stock,db):
 
     
     sentiment_data=pd.DataFrame(rows)
+
 
 
 # ======================merging the final data for prediction=================================
@@ -215,11 +229,14 @@ def data_computer(stock,db):
 # ===================calculating the lags==========================
     merge_data=merge_data.drop(columns=[c for c in merge_data.columns if c.endswith('_lag1')])
 
+    print("After merging data:",merge_data.shape)
+
     cols=['Trend','Volume_spike','Gap','Sentiment','days_since_news','Drawdown','Stress']
 
 
     for col in cols: 
         merge_data[f'{col}_lag1']=merge_data[col].shift(1)
+
 
     merge_data=merge_data.dropna()
 
