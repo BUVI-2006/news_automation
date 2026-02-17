@@ -27,8 +27,12 @@ load_dotenv()
 
 app=FastAPI()
 
-cred=credentials.Certificate('serviceaccountkey.json')
-firebase_admin.initialize_app(cred)
+firebase_key=os.environ.get('FIREBASE_KEY')
+
+cred=credentials.Certificate(firebase_key)
+
+if not firebase_admin._apps:
+     firebase_admin.initialize_app(cred)
 
 HF_TOKEN=os.environ.get('HF_TOKEN')
 
