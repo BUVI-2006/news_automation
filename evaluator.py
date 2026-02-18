@@ -19,14 +19,17 @@ from huggingface_hub import InferenceClient
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 
-NLTK_DIR="/opt/render/nltk_data"     # Forcing the NLTK to be stored in directory
+NLTK_DIR="/opt/render/nltk_data"     # Forcing the NLTK files to be stored in directory
 os.makedirs(NLTK_DIR, exist_ok=True)
 nltk.data.path.append(NLTK_DIR)
 
-try:
-      nltk.data.find("sentiment/vader_lexicon.zip")
-except LookupError:
-    nltk.download("vader_lexicon", download_dir=NLTK_DIR)
+resources=['vader_lexicon','punkt','punkt_tab']
+
+for resource in resources:
+    try:
+        nltk.data.find(resource)
+    except LookupError:
+        nltk.download(resource, download_dir=NLTK_DIR)
 
 from nltk.sentiment import SentimentIntensityAnalyzer
 
