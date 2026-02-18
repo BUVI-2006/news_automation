@@ -17,7 +17,19 @@ import pickle
 import json
 from huggingface_hub import InferenceClient
 from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+
+NLTK_DIR="/opt/render/nltk_data"     # Forcing the NLTK to be stored in directory
+os.makedirs(NLTK_DATA_DIR, exist_ok=True)
+nltk.data.path.append(NLTK_DIR)
+
+try:
+      nltk.data.find("sentiment/vader_lexicon.zip")
+except LookupError:
+    nltk.download("vader_lexicon", download_dir=NLTK_DATA_DIR)
+
 from nltk.sentiment import SentimentIntensityAnalyzer
+
 
 
 
@@ -40,6 +52,9 @@ HF_TOKEN=os.environ.get('HF_TOKEN')
 
    
 client=InferenceClient(token=HF_TOKEN)
+
+
+
 
 
 
